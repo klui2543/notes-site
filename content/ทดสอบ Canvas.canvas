@@ -1,0 +1,109 @@
+{
+	"nodes": [
+		{
+			"id": "grp-flow",
+			"type": "group",
+			"label": "ขั้นตอนการ publish",
+			"x": -40,
+			"y": -80,
+			"width": 1250,
+			"height": 240
+		},
+		{
+			"id": "n-vault",
+			"type": "text",
+			"text": "## Obsidian vault\nติด `publish: true`\nหรือแท็ก `#publish`",
+			"x": 0,
+			"y": 0,
+			"width": 250,
+			"height": 120,
+			"color": "5"
+		},
+		{
+			"id": "n-sync",
+			"type": "text",
+			"text": "## sync.mjs\nด่านกรองหลัก\nคัดเฉพาะที่ติด marker",
+			"x": 320,
+			"y": 0,
+			"width": 250,
+			"height": 120,
+			"color": "4"
+		},
+		{
+			"id": "n-ci",
+			"type": "text",
+			"text": "## GitHub Actions\nแปลง Excalidraw → SVG\nแล้ว build Quartz",
+			"x": 640,
+			"y": 0,
+			"width": 250,
+			"height": 120,
+			"color": "6"
+		},
+		{
+			"id": "n-web",
+			"type": "text",
+			"text": "## GitHub Pages\nklui2543.github.io\n/notes-site",
+			"x": 960,
+			"y": 0,
+			"width": 250,
+			"height": 120,
+			"color": "2"
+		},
+		{
+			"id": "n-published",
+			"type": "file",
+			"file": "Workflow.md",
+			"x": 0,
+			"y": 280,
+			"width": 400,
+			"height": 260
+		},
+		{
+			"id": "n-note",
+			"type": "text",
+			"text": "กล่องซ้ายคือโน้ตที่ publish แล้ว → ต้องอยู่รอด\n\nกล่องขวาชี้ไปโน้ตที่ **ไม่ได้** publish → sync ต้องตัดทิ้งทั้ง node และเส้นที่ต่อกับมัน",
+			"x": 960,
+			"y": 280,
+			"width": 250,
+			"height": 260,
+			"color": "3"
+		}
+	],
+	"edges": [
+		{
+			"id": "e1",
+			"fromNode": "n-vault",
+			"fromSide": "right",
+			"toNode": "n-sync",
+			"toSide": "left"
+		},
+		{
+			"id": "e2",
+			"fromNode": "n-sync",
+			"fromSide": "right",
+			"toNode": "n-ci",
+			"toSide": "left"
+		},
+		{
+			"id": "e3",
+			"fromNode": "n-ci",
+			"fromSide": "right",
+			"toNode": "n-web",
+			"toSide": "left"
+		},
+		{
+			"id": "e4",
+			"fromNode": "n-sync",
+			"fromSide": "bottom",
+			"toNode": "n-published",
+			"toSide": "top",
+			"label": "ผ่าน"
+		}
+	],
+	"metadata": {
+		"version": "1.0-1.0",
+		"frontmatter": {
+			"publish": true
+		}
+	}
+}
