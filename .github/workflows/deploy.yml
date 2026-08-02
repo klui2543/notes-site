@@ -36,8 +36,13 @@ jobs:
 
       - run: npm ci
 
+      # Invoked through `node` rather than `npx quartz`. The `quartz` bin is a
+      # shebang script, and this repo is normally committed from Windows, which
+      # does not preserve the executable bit - `npx quartz` then dies with
+      # "Permission denied" on the Linux runner. Calling node directly does not
+      # care about file modes.
       - name: Install Quartz plugins
-        run: npx quartz plugin install
+        run: node ./quartz/bootstrap-cli.mjs plugin install
 
       - name: Check for staged drawings
         id: drawings
@@ -57,7 +62,7 @@ jobs:
         run: node scripts/render-drawings.mjs
 
       - name: Build site
-        run: npx quartz build
+        run: node ./quartz/bootstrap-cli.mjs build
 
       - uses: actions/configure-pages@v5
 
