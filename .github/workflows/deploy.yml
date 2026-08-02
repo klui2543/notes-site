@@ -1,0 +1,76 @@
+name: Deploy notes site
+
+# content/ is committed by `node scripts/sync.mjs`, so a push is the signal that
+# the published set changed. Excalidraw scenes are rendered here rather than at
+# sync time so that syncing from a phone or a cloud session needs no browser.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "CLAUDE.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # created-modified-date reads git history for page dates.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Quartz plugins
+        run: npx quartz plugin install
+
+      - name: Check for staged drawings
+        id: drawings
+        run: |
+          if compgen -G "drawings-src/*.excalidraw.json" > /dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Chromium
+        if: steps.drawings.outputs.found == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Render Excalidraw drawings to SVG
+        if: steps.drawings.outputs.found == 'true'
+        run: node scripts/render-drawings.mjs
+
+      - name: Build site
+        run: npx quartz build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
