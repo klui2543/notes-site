@@ -277,20 +277,23 @@ async function main() {
   const canvases = []       // publishable canvases
   const skipped = []
   const blocked = []
+  const unreadable = []     // files we could not even parse - never silently dropped
 
   for (const f of files) {
     const ext = path.extname(f.rel).toLowerCase()
     if (ext !== ".md" && ext !== ".canvas") continue
 
     let frontmatter, body
-    const raw = await fs.readFile(f.abs, "utf8")
+    // Strip a UTF-8 BOM: JSON.parse rejects it outright, and a canvas that
+    // fails to parse would otherwise drop out of the run unnoticed.
+    const raw = (await fs.readFile(f.abs, "utf8")).replace(/^﻿/, "")
 
     if (ext === ".canvas") {
       let canvas
       try {
         canvas = JSON.parse(raw)
       } catch (err) {
-        skipped.push({ rel: f.rel, reason: `unparseable canvas: ${err.message}` })
+        unreadable.push({ rel: f.rel, reason: err.message })
         continue
       }
       frontmatter = canvas.metadata?.frontmatter ?? {}
@@ -326,6 +329,11 @@ async function main() {
   // Set of everything cleared for publication, for link rewriting.
   const publishedRel = new Set([...notes, ...canvases].map((n) => n.rel))
   const outPaths = planOutputPaths([...publishedRel])
+
+  if (unreadable.length) {
+    log("\n!! COULD NOT PARSE - these files were skipped without a publish decision:")
+    for (const u of unreadable) log(`   ${u.rel}\n     ${u.reason}`)
+  }
 
   if (blocked.length) {
     log("\n!! BLOCKED by denylist (marked for publish but path is protected):")
@@ -554,6 +562,7 @@ async function main() {
   log(`drawings:           ${drawings.size}`)
   log(`skipped (private):  ${skipped.length}`)
   log(`blocked (denylist): ${blocked.length}`)
+  log(`unparseable:        ${unreadable.length}`)
 
   if (warnings.length) {
     log("\nwarnings:")
