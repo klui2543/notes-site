@@ -79,6 +79,22 @@ There is no Drive mount, so stage the vault first:
 4. Commit and push.
 
 `_vault/` is gitignored — it holds unpublished notes and must never be committed.
+`sync.mjs` refuses to run if it is not, so do not "fix" that by deleting the
+check. Note that upstream Quartz's `.gitignore` contains a `.gitignore` entry
+which makes the file ignore *itself*; if that line ever comes back, `git add -A`
+will stop tracking it and the repo silently loses all ignore rules.
+
+**Drive connector caveat.** `download_file_content` truncates at roughly 11.5 KB,
+which silently corrupts anything larger — a compressed Excalidraw payload cut
+short simply fails to decompress. `read_file_content` returns the whole file but
+as a text rendering, so it is not guaranteed byte-exact. For a large note:
+
+- compare the Drive file's `modifiedTime` against the last sync commit; if the
+  note has not changed, regenerate it from what is already committed instead of
+  re-downloading, and
+- always confirm by round-tripping — re-run sync and check `content/` and
+  `drawings-src/` come out byte-identical. That check has already caught a
+  single wrong character in a transcribed payload.
 
 Staging only *candidate* files is fine: sync re-checks the publish marker on
 everything it sees, and a note that is missing from `_vault/` simply does not get
