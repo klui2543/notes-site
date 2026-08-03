@@ -84,17 +84,37 @@ check. Note that upstream Quartz's `.gitignore` contains a `.gitignore` entry
 which makes the file ignore *itself*; if that line ever comes back, `git add -A`
 will stop tracking it and the repo silently loses all ignore rules.
 
-**Drive connector caveat.** `download_file_content` truncates at roughly 11.5 KB,
-which silently corrupts anything larger — a compressed Excalidraw payload cut
-short simply fails to decompress. `read_file_content` returns the whole file but
-as a text rendering, so it is not guaranteed byte-exact. For a large note:
+**Drive connector caveat.** `download_file_content` truncates at roughly 11.5 KB
+and reports success anyway. A truncated note still parses, still carries its
+publish marker, and still syncs — it just loses its tail. The one time this was
+caught, it was luck: the file happened to hold a compressed Excalidraw payload,
+which fails loudly when it cannot decompress. Prose would have gone straight
+through. `read_file_content` returns the whole file, but as a text rendering, so
+it is not guaranteed byte-exact.
 
-- compare the Drive file's `modifiedTime` against the last sync commit; if the
-  note has not changed, regenerate it from what is already committed instead of
-  re-downloading, and
-- always confirm by round-tripping — re-run sync and check `content/` and
-  `drawings-src/` come out byte-identical. That check has already caught a
-  single wrong character in a transcribed payload.
+**You do not have to catch this by hand.** Every sync writes `sync-manifest.json`
+recording the size and hash of each source file it consumed. When the vault is a
+directory inside the repo — i.e. staged rather than mounted — the next sync
+checks the stage against it and refuses to write anything if either:
+
+- a staged file is **smaller** than it was last time (truncation), or
+- a file that was published last time is **missing** from the stage — which
+  matters because sync rebuilds `content/` from scratch, so a partial stage
+  silently unpublishes whatever it left out.
+
+Both are real situations sometimes, so both have an escape hatch — but they have
+to be stated rather than assumed: `--allow-shrink` and `--allow-missing`.
+
+The manifest is keyed by a *hash* of each vault path, never the path itself: it
+is committed to a public repo, and the vault's folder names are exactly what the
+output paths go out of their way to strip.
+
+When a large note does get truncated, the cheapest fix is usually to avoid the
+download entirely: compare the Drive file's `modifiedTime` against the last sync
+commit, and if the note has not changed, regenerate it from what is already
+committed. Confirm either way by re-running sync and checking `content/` and
+`drawings-src/` come out byte-identical — that round-trip has already caught a
+single wrong character in a hand-transcribed payload.
 
 Staging only *candidate* files is fine: sync re-checks the publish marker on
 everything it sees, and a note that is missing from `_vault/` simply does not get

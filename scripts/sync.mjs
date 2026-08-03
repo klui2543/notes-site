@@ -94,13 +94,20 @@ function planOutputPaths(rels) {
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const args = { dryRun: false, verbose: false, vault: null }
+  const args = {
+    dryRun: false, verbose: false, vault: null,
+    allowShrink: false, allowMissing: false,
+  }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === "--dry-run") args.dryRun = true
     else if (a === "--verbose" || a === "-v") args.verbose = true
     else if (a === "--vault") args.vault = argv[++i]
     else if (a.startsWith("--vault=")) args.vault = a.slice("--vault=".length)
+    // Escape hatches for when a note genuinely shrank, or is genuinely being
+    // withdrawn. Both are real situations - they just must be stated, not assumed.
+    else if (a === "--allow-shrink") args.allowShrink = true
+    else if (a === "--allow-missing") args.allowMissing = true
     else throw new Error(`unknown argument: ${a}`)
   }
   return args
@@ -180,6 +187,73 @@ async function walk(dir, base = dir, out = []) {
     }
   }
   return out
+}
+
+// ---------------------------------------------------------------------------
+// Staging manifest
+//
+// The cloud/mobile flow downloads the vault through the Google Drive connector,
+// which truncates files at roughly 11.5 KB *without reporting an error*. A note
+// cut short still parses, still carries its publish marker, and still syncs -
+// it just silently loses its tail. The only reason that was ever noticed is
+// that the file it hit happened to be a compressed Excalidraw payload, which
+// fails loudly when it cannot decompress. Plain prose would have gone through.
+//
+// So each sync records the size and hash of every source file it consumed, and
+// a later sync from a staged vault checks the stage against that record. Two
+// failures are caught: a file that came back shorter than it was (truncation)
+// and a file that is missing from the stage entirely (which matters because
+// sync wipes content/, so a partial stage silently *unpublishes* notes).
+//
+// The manifest is committed to a public repo, so it must not carry vault paths -
+// those would reveal the private folder taxonomy that output paths deliberately
+// strip. Entries are keyed by a hash of the vault path instead.
+// ---------------------------------------------------------------------------
+
+const MANIFEST = path.join(REPO, "sync-manifest.json")
+
+function pathKey(rel) {
+  return crypto.createHash("sha256").update(rel, "utf8").digest("hex").slice(0, 16)
+}
+
+async function hashFile(abs) {
+  return crypto.createHash("sha256").update(await fs.readFile(abs)).digest("hex")
+}
+
+function readManifest() {
+  const raw = readIfExists(MANIFEST)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Compare a staged vault against the previous sync. Only meaningful when the
+ * vault is a staging directory - against the real Drive mount a shorter or
+ * absent file is a genuine edit, not a transfer fault.
+ */
+function checkStage(files, manifest, args) {
+  const problems = { short: [], missing: [] }
+  if (!manifest?.files) return problems
+
+  const staged = new Map(files.map((f) => [pathKey(f.rel), f]))
+  for (const [key, entry] of Object.entries(manifest.files)) {
+    const f = staged.get(key)
+    if (!f) {
+      problems.missing.push(entry)
+      continue
+    }
+    const bytes = fsSync.statSync(f.abs).size
+    if (bytes < entry.bytes) {
+      problems.short.push({ ...entry, rel: f.rel, got: bytes })
+    }
+  }
+  if (args.allowShrink) problems.short = []
+  if (args.allowMissing) problems.missing = []
+  return problems
 }
 
 // ---------------------------------------------------------------------------
@@ -300,6 +374,36 @@ async function main() {
 
   const files = await walk(VAULT)
   const resolve = makeResolver(files)
+
+  // A vault inside the repo was staged by a connector, not mounted. Verify it
+  // arrived intact before letting it decide what the site contains.
+  const relToRepo = path.relative(REPO, VAULT)
+  const isStaged = relToRepo && !relToRepo.startsWith("..") && !path.isAbsolute(relToRepo)
+  if (isStaged) {
+    const problems = checkStage(files, readManifest(), args)
+    if (problems.short.length) {
+      log("\n!! TRUNCATED - these staged files are smaller than they were last sync:")
+      for (const p of problems.short) {
+        log(`   ${p.out}\n     got ${p.got} bytes, expected at least ${p.bytes}`)
+      }
+      log(
+        "\n   The Drive connector truncates downloads at ~11.5 KB without erroring.\n" +
+          "   Re-fetch these files and verify their size against Drive's metadata.\n" +
+          "   If a note genuinely got shorter, re-run with --allow-shrink.",
+      )
+    }
+    if (problems.missing.length) {
+      log("\n!! MISSING FROM STAGE - published last sync, absent now:")
+      for (const p of problems.missing) log(`   ${p.out}`)
+      log(
+        "\n   sync rebuilds content/ from scratch, so continuing would UNPUBLISH these.\n" +
+          "   Stage them too, or re-run with --allow-missing if that is the intent.",
+      )
+    }
+    if (problems.short.length || problems.missing.length) {
+      throw new Error("staged vault failed its integrity check; nothing was written")
+    }
+  }
 
   // -- pass 1: decide -------------------------------------------------------
   const notes = []          // publishable markdown notes
@@ -581,6 +685,37 @@ async function main() {
         )
       }
     }
+
+    // Record what every published page was built from, so the next sync can
+    // tell a staged vault that arrived intact from one that lost a tail.
+    const sources = [
+      ...notes.map((n) => [n.rel, outPaths.get(n.rel)]),
+      ...canvases.map((c) => [c.rel, outPaths.get(c.rel)]),
+      ...[...assets].map(([rel, name]) => [rel, `${ASSETS_SUBDIR}/${name}`]),
+      ...[...drawings].map(([rel, d]) => [rel, `${DRAWINGS_SUBDIR}/${d.slug}.svg`]),
+    ]
+    const manifestFiles = {}
+    for (const [rel, out] of sources) {
+      const abs = files.find((f) => f.rel === rel)?.abs
+      if (!abs) continue
+      manifestFiles[pathKey(rel)] = {
+        out,
+        bytes: fsSync.statSync(abs).size,
+        sha256: await hashFile(abs),
+      }
+    }
+    await fs.writeFile(
+      MANIFEST,
+      JSON.stringify(
+        {
+          note: "Written by scripts/sync.mjs. Keys are hashes of vault paths - the paths themselves are private.",
+          files: manifestFiles,
+        },
+        null,
+        2,
+      ) + "\n",
+      "utf8",
+    )
   }
 
   // -- report ---------------------------------------------------------------

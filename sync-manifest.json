@@ -1,0 +1,40 @@
+{
+  "note": "Written by scripts/sync.mjs. Keys are hashes of vault paths - the paths themselves are private.",
+  "files": {
+    "86d7988e2501ea03": {
+      "out": "assets/drawings/workflow-8d640f99.svg",
+      "bytes": 18466,
+      "sha256": "99a7276d33ca5acf9f34d4ea2b34b62ce7c3f3df46b4c7ee72c8b139e5dc0917"
+    },
+    "af5a88b3b4c32030": {
+      "out": "Life 1/มองหาอนาคตของเราอย่างไร ในโลกที่ไม่มีอะไรแน่นอน.md",
+      "bytes": 346,
+      "sha256": "562473725cf14393435f39acf1396a906e29f45d9aef1ee91eb3670358343b72"
+    },
+    "02302f0aa5e3d274": {
+      "out": "Life/(สรุปหนังสือ) Earned Life.md",
+      "bytes": 1089,
+      "sha256": "0e52009f6b2af8bf1097a05cc3dd4f5bd181efd08930792db5489f82a41e4ad7"
+    },
+    "724d9d0e9deb1d47": {
+      "out": "Life/ไม่ต้องหาร้อยวิธีแก้ แค่คิดอย่างเป็นระบบ.md",
+      "bytes": 1591,
+      "sha256": "b91af676c31b5c064fb2123dcdb6c93e7f6186ed51bcb7a5423ed50f4f66ac84"
+    },
+    "68e30569f534e8e2": {
+      "out": "Life/How to project management.md",
+      "bytes": 194,
+      "sha256": "54cc162445dfda2262e4853a2aa1cded7fba14359bc1af3c8da3af6ca443c4f7"
+    },
+    "f381dcceda661290": {
+      "out": "ทดสอบ Canvas.canvas",
+      "bytes": 2543,
+      "sha256": "eb8ca00fb8cced091f191f37142d5835f7bb8e05f3660ae3d21fe0f5eb9d79dd"
+    },
+    "9f5e4110f4d56347": {
+      "out": "assets/สรุป Earned life.webp",
+      "bytes": 350908,
+      "sha256": "57d1f7a83d9cddcfa97a60e9699090c597caed357a905d4f3370383dce5454ca"
+    }
+  }
+}
