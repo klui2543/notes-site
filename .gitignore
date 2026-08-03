@@ -23,9 +23,11 @@ quartz/cli/tui/dist/
 _vault/
 .vault-path
 
-# Rendered by CI from drawings-src/ on every build. Committing these would let a
-# stale drawing outlive the scene it came from.
-content/assets/drawings/
+# NOTE: do NOT ignore content/assets/drawings/. Quartz globs content/ with
+# `gitignore: true` (quartz/util/glob.ts), so anything ignored here is also
+# invisible to the build - the CI-rendered SVGs would land on disk and then be
+# dropped, leaving every drawing a 404. Stale drawings are not a risk anyway:
+# sync.mjs wipes content/ wholesale on every run.
 
 # Excalidraw exporter harness (scripts/render-drawings.mjs --harness <file>)
 harness.html
