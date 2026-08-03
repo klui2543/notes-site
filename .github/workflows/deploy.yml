@@ -10,6 +10,10 @@ on:
       - "README.md"
       - "CLAUDE.md"
   workflow_dispatch:
+  # Callable from sync.yml. A push made with GITHUB_TOKEN does not trigger other
+  # workflows, so after that job commits a sync it has to invoke this directly
+  # rather than rely on its own push being noticed.
+  workflow_call:
 
 permissions:
   contents: read

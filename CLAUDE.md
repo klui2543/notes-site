@@ -63,7 +63,33 @@ lists every published file, every blocked file, and every dropped link.
 Preview locally first with `npx quartz build --serve` (drawings will show as
 broken images unless Chromium is installed; that is expected — see below).
 
-### From a phone, or any cloud session (no `G:` drive)
+### From a phone — press a button (preferred)
+
+Repo → **Actions** → **Sync vault and publish** → **Run workflow**.
+
+`.github/workflows/sync.yml` fetches the vault from Drive with a service
+account, runs the publish gate, commits anything that changed, and deploys. No
+connector, no staging by hand, no PC. Setup is one-time:
+
+1. Google Cloud console → new project → enable the **Google Drive API**.
+2. Create a **service account**; no roles are needed — it is authorised by
+   sharing, not by IAM. Create a **JSON key** for it.
+3. In Drive, share the vault folder with the service account's
+   `…@….iam.gserviceaccount.com` address as **Viewer**. Share *only* that
+   folder: the key grants whatever the account can see.
+4. Repo → Settings → Secrets and variables → Actions → new secret
+   **`GDRIVE_SERVICE_ACCOUNT_JSON`**, pasting the whole key file.
+
+The workflow downloads the *entire* vault, private notes included, into
+`_vault/` on the runner. That is safe only because `_vault/` is gitignored,
+`sync.mjs` refuses to run if it ever stops being, and the job asserts afterwards
+that nothing under `_vault/` became tracked. Keep all three.
+
+`scripts/fetch-vault.mjs` verifies every download against the `size` and
+`md5Checksum` Drive reports, and fails the run if any file is short — the exact
+failure the connector produces silently.
+
+### From a phone via the Drive connector (fallback, no setup)
 
 There is no Drive mount, so stage the vault first:
 

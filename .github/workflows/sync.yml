@@ -1,0 +1,84 @@
+name: Sync vault and publish
+
+# Pull the vault straight from Google Drive with a service account, run the
+# publish gate, and deploy whatever it cleared.
+#
+# This is the path that works from a phone: open the repo's Actions tab, press
+# "Run workflow". No Drive connector, no local staging, no PC.
+on:
+  workflow_dispatch:
+  # Uncomment to sync on a schedule as well. Tagging a note `publish: true` in
+  # Obsidian would then be enough - the site catches up on its own.
+  # schedule:
+  #   - cron: "0 1 * * *"   # 08:00 Asia/Bangkok
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Downloads the whole vault - published and private alike - into _vault/.
+      # That directory is gitignored, and scripts/sync.mjs refuses to run if it
+      # ever stops being ignored, so the private notes cannot reach a commit.
+      - name: Fetch vault from Google Drive
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+        run: node scripts/fetch-vault.mjs
+
+      - name: Apply the publish gate
+        run: node scripts/sync.mjs --vault _vault --verbose
+
+      - name: Commit if the published set changed
+        id: commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A content drawings-src sync-manifest.json
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No change to the published set."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git commit -m "sync: publish from vault"
+            git push
+          fi
+
+      # Belt and braces. _vault/ is gitignored and sync.mjs enforces that, but
+      # this job holds the entire private vault on disk, so make it loud if any
+      # of it ever ends up tracked.
+      - name: Assert no vault file was committed
+        run: |
+          if git ls-files --error-unmatch _vault > /dev/null 2>&1; then
+            echo "::error::_vault/ is tracked by git - private notes would be published"
+            exit 1
+          fi
+
+  deploy:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
