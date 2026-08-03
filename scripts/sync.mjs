@@ -24,6 +24,7 @@ import fs from "node:fs/promises"
 import fsSync from "node:fs"
 import path from "node:path"
 import crypto from "node:crypto"
+import { spawnSync } from "node:child_process"
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml"
 import { parseExcalidraw, embeddedFileCount } from "./lib/excalidraw.mjs"
 
@@ -103,6 +104,33 @@ function parseArgs(argv) {
     else throw new Error(`unknown argument: ${a}`)
   }
   return args
+}
+
+/**
+ * A vault staged inside the repo is full of unpublished notes, and the routine
+ * command is `sync && git add -A && git commit`. If git is not ignoring that
+ * directory, that command publishes the entire private vault.
+ *
+ * This is not hypothetical: upstream Quartz ships a `.gitignore` containing a
+ * `.gitignore` entry, so the file ignores itself and `git add -A` never tracks
+ * it - leaving a repo with no ignore rules at all and no visible sign of it.
+ */
+function assertVaultIsIgnored(vaultPath) {
+  const rel = path.relative(REPO, vaultPath)
+  const insideRepo = rel && !rel.startsWith("..") && !path.isAbsolute(rel)
+  if (!insideRepo) return
+
+  const probe = spawnSync("git", ["check-ignore", "-q", "--", rel], { cwd: REPO })
+  // 0 = ignored, 1 = not ignored, anything else = git could not tell us.
+  if (probe.status === 0) return
+
+  throw new Error(
+    `the vault is staged at "${rel}", inside the repo, but git is NOT ignoring it.\n` +
+      `Running \`git add -A\` after this would commit every unpublished note.\n\n` +
+      `Add this to .gitignore, and make sure .gitignore itself is tracked\n` +
+      `(\`git ls-files .gitignore\` must print the path):\n\n` +
+      `    ${rel.split(path.sep).join("/")}/\n`,
+  )
 }
 
 /**
@@ -262,6 +290,7 @@ function shortHash(s) {
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   const VAULT = resolveVault(args.vault)
+  assertVaultIsIgnored(VAULT)
   const log = (...a) => console.log(...a)
   const vlog = (...a) => args.verbose && console.log(...a)
 

@@ -1,0 +1,31 @@
+# NOTE: upstream Quartz ships this file with a `.gitignore` entry that makes it
+# ignore itself, so `git add -A` silently never tracks it. That left the repo
+# with no ignore rules at all and made the routine sync command capable of
+# committing the whole staged vault. Do not re-add that entry.
+.DS_Store
+node_modules
+public
+prof
+tsconfig.tsbuildinfo
+.obsidian
+.quartz-cache
+private/
+.replit
+replit.nix
+.quartz/
+quartz/cli/tui/dist/
+.turbo/
+
+# Vault staging. `_vault/` is where a cloud/mobile session downloads the notes
+# it pulled from Google Drive before running sync; `.vault-path` records where
+# the vault lives on a given machine. Neither belongs in the repo - they hold
+# unpublished notes.
+_vault/
+.vault-path
+
+# Rendered by CI from drawings-src/ on every build. Committing these would let a
+# stale drawing outlive the scene it came from.
+content/assets/drawings/
+
+# Excalidraw exporter harness (scripts/render-drawings.mjs --harness <file>)
+harness.html
