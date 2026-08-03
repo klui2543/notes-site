@@ -31,3 +31,7 @@ _vault/
 
 # Excalidraw exporter harness (scripts/render-drawings.mjs --harness <file>)
 harness.html
+
+# local hook state (notion-sync)
+.claude/.last-notion-reminder
+.claude/.last-notion-sync
