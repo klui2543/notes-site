@@ -148,6 +148,41 @@ published that round. But note the consequence — **sync wipes `content/` and
 rebuilds it**, so a partial stage will *unpublish* anything it left out. When in
 doubt stage the whole vault.
 
+#### Paste-ready prompt for that path
+
+Everything above is the *why*. This is the thing to actually send from a phone,
+after opening a Claude Code cloud session on this repo. It encodes the guards
+above so they do not have to be recalled on a small screen. Confirmed available
+in a cloud session on 2026-08-04: Google Drive MCP, node 22, npm, git — no
+`clasp`, no service-account key, neither of which this path needs.
+
+```
+sync vault ขึ้นเว็บ ผ่าน Google Drive connector (ไม่ใช้ service account)
+
+1. เดิน vault จาก folder id 1KnQ8uRROg9KUBb3N7fK3pSEqwdhpIaVq
+   ⚠️ ทุกไฟล์ที่เจอ ต้องไล่ ancestry ขึ้นไปให้ถึง folder id นี้ก่อนเชื่อ
+   (full-text search แมตช์ไฟล์นอก vault ได้ และมี vault ที่ 2 ชื่อ
+   "New Vault" ที่ห้ามแตะ)
+2. โหลดลง _vault/ โดยคงโครงพาธเดิม + เอา attachment / .excalidraw
+   ที่โน้ตอ้างถึงมาด้วย — ถ้าไม่แน่ใจให้เอามาทั้ง vault
+   (stage ไม่ครบ = ของที่เคย publish จะถูกถอดออกเงียบๆ)
+3. node scripts/sync.mjs --vault _vault --verbose
+4. อ่านรายงานให้จบก่อน แล้วสรุปให้ผมฟังว่า publish อะไร บล็อกอะไร
+5. commit + push (push จะไปกระตุ้น deploy.yml เอง)
+
+ห้ามทำ:
+- ห้าม commit _vault/ เด็ดขาด
+- ถ้า sync เตือนว่าไฟล์เล็กลง หรือไฟล์ที่เคย publish หายไป
+  ให้ "หยุดแล้วถามผม" ห้ามใส่ --allow-shrink / --allow-missing เอง
+  (นั่นคือด่านจับ download_file_content ตัดไฟล์เงียบๆ ที่ ~11.5 KB)
+- ห้ามแก้ไฟล์ใน content/ ด้วยมือ
+
+เสร็จแล้วบอก URL ให้ผมเปิดเช็ค
+```
+
+Verify at <https://klui2543.github.io/notes-site/> once the deploy run finishes.
+A green Actions run only means Quartz built — not that the right notes went out.
+
 ### Un-publishing
 
 Remove the marker in the vault (`node scripts/tag-publish.mjs --vault <path>
