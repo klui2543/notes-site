@@ -1,6 +1,7 @@
 ---
 name: notion-sync
-description: ส่งงานที่ทำใน Claude Code ขึ้น Notion Session Log + อัปเดต Pending Items ของ Klui (second brain ที่ Claude chat อ่าน) ใช้เมื่อผู้ใช้พิมพ์ /notion-sync หรือกำลังจะจบเซสชัน หรือมีตัวเตือนบอกว่ามี commit ค้างยังไม่ขึ้น Notion. Use when syncing coding-session work into the user's Notion knowledge base.
+description: ⛔ เลิกใช้แล้ว (Klui สั่งเลิก 2026-09-30 และยืนยันให้ปิดใน repo นี้ 2026-10-24) ห้ามเรียกเองและห้ามเสนอ ใช้เฉพาะเมื่อ Klui พิมพ์ /notion-sync เองเท่านั้น
+disable-model-invocation: true
 ---
 
 # notion-sync — ส่งงานขึ้นกระดานกลางที่ Claude chat อ่าน
